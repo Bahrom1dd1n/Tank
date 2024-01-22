@@ -25,10 +25,10 @@ protected:
 	//float radious = 0;// distance to farest points2 from center
 	bool fixed = true;
 	
-	float most_right;//distance on x axis to farest point on the right 
-	float most_left;//distance on x axis to farest point in the left , always negative
-	float most_top;//distance on y axis to farest point on the top , always negative
-	float most_bottom;//distance on y axis to farest point on the bottom
+	float most_right=0.0F;//distance on x axis to farest point on the right 
+	float most_left=0.0F;//distance on x axis to farest point in the left , always negative
+	float most_top=0.0F;//distance on y axis to farest point on the top , always negative
+	float most_bottom=0.0F;//distance on y axis to farest point on the bottom
 
 public:
 	inline Object() {};
@@ -39,42 +39,33 @@ public:
 		this->num_points = num_points;
 		this->points = new SDL_FPoint[num_points];
 
-		radious = 0;
-
 		for (int i = 0; i < num_points; i++)
 		{
-			SDL_FPoint p = boundary_points[i];
+			SDL_FPoint& p = boundary_points[i];
 			this->points[i] = p;// copiing coordinates of all points 
 
-			float dis = (center.x - p.x) * (center.x - p.x) + (center.y - p.y) * (center.y - p.y);//finding max distance
-			if (dis > radious)
-				radious = dis;
+			this->most_right = std::fmaxf(p.x, this->most_right);
+			this->most_left = std::fminf(p.x, this->most_left);
+			this->most_bottom = std::fmaxf(p.y, this->most_bottom);
+			this->most_top = std::fminf(p.y, this->most_top);
 		}
-
-		radious = sqrtf(radious);
 	}
 
 	bool Collision(Object* object)
 	{
 		{
 			/*
-				if object far enough
-				we initially suppose both object as circles then check for collision
-
-				if discantec between circles > sum of their radiouses then they are not colliding
-				thus both objects are not collidiong
-
+			* Checking for rectangular collision , if their rectangles not collide , they are indeed not intersecting
 			*/
 
-			float p = this->center.x - object->center.x;
-			float q = this->center.y - object->center.y;
-			p *= p;
-			q *= q;
-			p += q;
-			q = this->radious + object->radious;
-			q *= q;
+			if (this->most_left + this->center.x > object->center.x + object->most_right)
+				return false;
+			if (this->most_right + this->center.x < object->center.x + object->most_left)
+				return false;
 
-			if (p > q)
+			if (this->most_bottom + this->center.y < object->most_top + object->center.y)
+				return false;
+			if (this->most_top + this->center.y > object->most_bottom + object->center.y)
 				return false;
 		}
 
@@ -154,23 +145,17 @@ public:
 	{
 		{
 			/*
-				if object far enough
-				we initially suppose both object as circles then check for collision
-
-				if discantec between circles > sum of their radiouses then they are not colliding
-				thus both objects are not collidiong
-
+			* Checking for rectangular collision , if their rectangles not collide , they are indeed not intersecting
 			*/
 
-			float p = this->center.x - object->center.x;
-			float q = this->center.y - object->center.y;
-			p *= p;
-			q *= q;
-			p += q;
-			q = this->radious + object->radious;
-			q *= q;
+			if (this->most_left + this->center.x > object->center.x + object->most_right)
+				return false;
+			if (this->most_right + this->center.x < object->center.x + object->most_left)
+				return false;
 
-			if (p > q)
+			if (this->most_bottom + this->center.y < object->most_top + object->center.y)
+				return false;
+			if (this->most_top + this->center.y > object->most_bottom + object->center.y)
 				return false;
 		}
 
@@ -254,10 +239,10 @@ public:
 
 	inline bool InsideScreen()
 	{
-		if (this->center.x + this->radious < viewpoint.x || this->center.x - this->radious > viewpoint.x + window_width)
+		if (this->most_right+this->center.x < viewpoint.x || this->most_left+this->center.x > viewpoint.x + window_width)
 			return false;
 
-		if (this->center.y + this->radious < viewpoint.y || this->center.y - this->radious > viewpoint.y + window_height)
+		if (this->most_bottom+this->center.y < viewpoint.y || this->most_top + this->center.y > viewpoint.y + window_height)
 			return false;
 
 		return true;
@@ -272,18 +257,17 @@ public:
 
 		this->points = new SDL_FPoint[num_points];
 
-		this->radious = 0;
 		for (int i = 0; i < num_points; i++)
 		{
 			SDL_FPoint& p = boundary_points[i];
 			this->points[i] = p;// copiing coordinates of all points 
 
-			float dis = p.x * p.x + p.y * p.y;//finding max distance
-			if (dis > radious)
-				radious = dis;
+			this->most_right = std::fmaxf(p.x, this->most_right);
+			this->most_left = std::fminf(p.x, this->most_left);
+			this->most_bottom = std::fmaxf(p.y, this->most_bottom);
+			this->most_top = std::fminf(p.y, this->most_top);
 		}
 
-		radious = sqrtf(radious);
 	}
 
 	inline ~Object()
@@ -334,14 +318,15 @@ public:
 		for (int i = 0; i < num_points; i++)
 		{
 			SDL_FPoint& p = boundary_points[i];
-			this->points[i] = this->original_points[i] = p;// copiing coordinates of all points 
+			this->points[i] = p;// copiing coordinates of all points 
+			this->original_points[i] = p;
 
-			float dis = p.x * p.x + p.y * p.y;//finding max distance
-			if (dis > radious)
-				radious = dis;
+			this->most_right = std::fmaxf(p.x, this->most_right);
+			this->most_left = std::fminf(p.x, this->most_left);
+			this->most_bottom = std::fmaxf(p.y, this->most_bottom);
+			this->most_top = std::fminf(p.y, this->most_top);
 		}
 
-		radious = sqrtf(radious);
 	}
 
 	void MoveForward()
@@ -367,12 +352,18 @@ public:
 		{
 			SDL_FPoint& p = original_points[i];
 			points[i] = { p.x * cos_a - p.y * sin_a,p.x * sin_a + p.y * cos_a };
+			
+			this->most_right = std::fmaxf(points[i].x, this->most_right);
+			this->most_left = std::fminf(points[i].x, this->most_left);
+			this->most_bottom = std::fmaxf(points[i].y, this->most_bottom);
+			this->most_top = std::fminf(points[i].y, this->most_top);
+		
 		}
 	}
 
 	~MovingObject()
 	{
-		// if boundary points created dynamicaly its points dhold be delted , else if boundary points created with object
+		// if boundary points created dynamicaly its points must be delted , else if boundary points created with object
 		//its points original_points should be assigned to nullptr!!!!
 		if(original_points)
 			delete[] original_points;
@@ -593,6 +584,9 @@ public:
 
 		this->head_rect.x = this->body_rect.x + this->body_to_head.x;
 		this->head_rect.y = this->body_rect.y + this->body_to_head.y;
+
+		SDL_FRect temp{ this->most_left+this->center.x-viewpoint.x,this->most_top+this->center.y-viewpoint.y,this->most_right - this->most_left,this->most_bottom - this->most_top };
+		SDL_RenderFillRectF(main_ren, &temp);
 
 		SDL_RenderCopyExF(main_ren, this->body, NULL, &(this->body_rect), this->angle, NULL, SDL_FLIP_NONE);
 		SDL_RenderCopyExF(main_ren, this->head, NULL, &(this->head_rect), this->head_angle, &head_rotate_point, SDL_FLIP_NONE);
