@@ -38,17 +38,25 @@ public:
 		this->center = center;
 		this->num_points = num_points;
 		this->points = new SDL_FPoint[num_points];
-
+		
+		float m_r = -FLT_MAX, m_l = FLT_MAX;
+		float m_b = -FLT_MAX, m_t = FLT_MAX;
+		
 		for (int i = 0; i < num_points; i++)
 		{
 			SDL_FPoint& p = boundary_points[i];
 			this->points[i] = p;// copiing coordinates of all points 
 
-			this->most_right = std::fmaxf(p.x, this->most_right);
-			this->most_left = std::fminf(p.x, this->most_left);
-			this->most_bottom = std::fmaxf(p.y, this->most_bottom);
-			this->most_top = std::fminf(p.y, this->most_top);
+			m_r = std::fmaxf(p.x, m_r);
+			m_l = std::fminf(p.x, m_l);
+			m_b = std::fmaxf(p.y, m_b);
+			m_t = std::fminf(p.y, m_t);
 		}
+
+		this->most_right = m_r;
+		this->most_left = m_l;
+		this->most_top = m_t;
+		this->most_bottom = m_b;
 	}
 
 	bool Collision(Object* object)
@@ -314,6 +322,9 @@ public:
 			this->original_points = new SDL_FPoint[num_points];
 		}
 		this->num_points = num_points;
+		
+		float m_r = -FLT_MAX, m_l = FLT_MAX;
+		float m_b = -FLT_MAX, m_t = FLT_MAX;
 
 		for (int i = 0; i < num_points; i++)
 		{
@@ -321,12 +332,17 @@ public:
 			this->points[i] = p;// copiing coordinates of all points 
 			this->original_points[i] = p;
 
-			this->most_right = std::fmaxf(p.x, this->most_right);
-			this->most_left = std::fminf(p.x, this->most_left);
-			this->most_bottom = std::fmaxf(p.y, this->most_bottom);
-			this->most_top = std::fminf(p.y, this->most_top);
+			// identifying edges of object
+			m_r = std::fmaxf(p.x, m_r);
+			m_l = std::fminf(p.x,m_l);
+			m_b = std::fmaxf(p.y, m_b);
+			m_t = std::fminf(p.y, m_t);
 		}
-
+		
+		this->most_right = m_r;
+		this->most_left = m_l;
+		this->most_top = m_t;
+		this->most_bottom = m_b;
 	}
 
 	void MoveForward()
@@ -348,17 +364,31 @@ public:
 		cos_a = cosf(rad);
 		sin_a = sinf(rad);
 
+		float m_r = -FLT_MAX, m_l = FLT_MAX;
+		float m_b = -FLT_MAX, m_t = FLT_MAX;
+		
 		for (int i = 0; i < num_points; i++)
 		{
-			SDL_FPoint& p = original_points[i];
-			points[i] = { p.x * cos_a - p.y * sin_a,p.x * sin_a + p.y * cos_a };
+			SDL_FPoint& original = original_points[i];
+			SDL_FPoint& point = points[i];
+
+			point = { original.x * cos_a - original.y * sin_a,original.x * sin_a + original.y * cos_a };
 			
-			this->most_right = std::fmaxf(points[i].x, this->most_right);
-			this->most_left = std::fminf(points[i].x, this->most_left);
-			this->most_bottom = std::fmaxf(points[i].y, this->most_bottom);
-			this->most_top = std::fminf(points[i].y, this->most_top);
-		
+			if (point.x > m_r)
+				m_r = point.x;
+			if (point.x < m_l)
+				m_l = point.x;
+
+			if (point.y > m_b)
+				m_b = point.y;
+			if (point.y < m_t)
+				m_t = point.y;		
 		}
+
+		this->most_right = m_r;
+		this->most_left = m_l;
+		this->most_top = m_t;
+		this->most_bottom = m_b;
 	}
 
 	~MovingObject()
@@ -569,8 +599,8 @@ public:
 				this->head_angle = -90;
 			return;
 		}
-
-		head_angle = atanf(px / py) * 180 / M_PI;
+		const float rad = 180 / M_PI;
+		head_angle = atanf(px / py) * rad;
 		if (py < 0)
 			head_angle += 180;
 	}
@@ -674,10 +704,45 @@ class Wall :public Object
 private:
 	SDL_Texture* textur = nullptr;
 	SDL_FRect rect;
+	SDL_Vertex* vertices;
+	static SDL_Colour color;
+	int* vertex_indecies;
 public:
 
 	static Big_array<Wall> walls;
 	Wall() = default;
+	
+	void UpdateVertices()
+	{
+		float x = this->center.x - viewpoint.x;
+		float y = this->center.y - viewpoint.y;
+
+
+		for (int i = 0; i <num_points; i++)
+		{
+			this->vertices[i].position.x = this->points[i].x + x;
+			this->vertices[i].position.y = this->points[i].y + y;
+		}
+		this->vertices[this->num_points].position = { x,y };
+	}
+
+	void InitVertices()
+	{
+		this->vertices = new SDL_Vertex[this->num_points+1];
+		this->vertex_indecies = new int[3 * this->num_points];
+
+		for (int i = 0,j=0; i <num_points; i++,j+=3)
+		{
+			this->vertices[i] = { this->points[i],this->color,{0,0}};
+			
+			vertex_indecies[j] = num_points;
+			vertex_indecies[j + 1] = i;
+			vertex_indecies[j + 2] = i + 1;
+		}
+
+		this->vertices[this->num_points] = { this->center,this->color,{0,0} };
+		vertex_indecies[3 * num_points-1]=0;
+	}
 
 	Wall(const SDL_FPoint& center, float w, float h)
 	{
@@ -694,6 +759,7 @@ public:
 		};
 
 		this->SetPoints(4, boundary_points);
+		this->InitVertices();
 	}
 
 	void Render()
@@ -701,7 +767,21 @@ public:
 		if (!this->InsideScreen())
 			return;
 
-		float x = center.x - viewpoint.x;
+		//this->UpdateVertices();
+		//SDL_Vertex vertices[] = {
+		//	/*{ {320, 240}, {150,150,150}, {0,0} },*/  // Center
+		//	{ {100, 100}, {150,150,150}, {0,0} },  // Top point
+		//	{ {600, 100}, {150,150,150}, {0,0} },  // Bottom point
+		//	{ {600, 600}, {150,150,150}, {0,0} },  // Right point
+		//	{ {100, 500}, {150,150,150}, {0,0} },
+		//	{ {250, 250}, {150,150,150}, {0,0} }
+		//	// Left point
+		//};
+		//int vert_index[] = { 4,0,1,4,1,2,4,2,3,4,3,0 };
+
+		SDL_RenderGeometry(main_ren, NULL, vertices, num_points+1,vertex_indecies,num_points*3);
+
+		/*float x = center.x - viewpoint.x;
 		float y = center.y - viewpoint.y;
 
 		for (size_t i = this->num_points-1; i >0 ; i--)
@@ -714,9 +794,10 @@ public:
 		SDL_RenderDrawLineF(main_ren, points[0].x +x , points[0].y+y, points[num_points-1].x +x, 
 			points[num_points-1].y +y);
 
-		SDL_RenderDrawLineF(main_ren, points[0].x + x, points[0].y + y, x, y);
+		SDL_RenderDrawLineF(main_ren, points[0].x + x, points[0].y + y, x, y);*/
 	}
 };
+SDL_Color Wall::color = { 180,180,180,255};
 Big_array<Wall> Wall::walls(10);
 
 class Terrain
