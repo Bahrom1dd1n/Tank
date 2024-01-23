@@ -7,6 +7,8 @@
 #include<cmath>
 #include"Shared_Texture.h"
 #include"Big_data_array.h"
+#include<fstream>
+#include<list>
 
 const int window_width = 1200;
 const int window_height = 700;
@@ -680,6 +682,11 @@ public:
 	void Move()
 	{
 		this->MoveForward();
+
+		float distance = this->forward * this->speed * time_elapsed;
+		viewpoint.x += distance * this->sin_a;
+		viewpoint.y -= distance * this->cos_a;
+
 		this->RotateBy(body_rotate * time_elapsed);
 		this->Render();
 		
@@ -704,12 +711,24 @@ class Wall :public Object
 private:
 	SDL_Texture* textur = nullptr;
 	SDL_FRect rect;
-	SDL_Vertex* vertices;
+	SDL_Vertex* vertices=nullptr;
 	static SDL_Colour color;
-	int* vertex_indecies;
+	int* vertex_indecies=nullptr;
+	const static short data_size;
+	void ReadFromFile(std::ifstream& file, int position = -1)
+	{
+		if (position > 0)//if position given -1 then it will writo to posion where "write poiter" loacated of file
+			file.seekg(position);
+
+		file.read((char*)this, Wall::data_size);
+		file.read((char*)&num_points, sizeof(int));
+		this->points = new SDL_FPoint;
+		file.read((char*)points, num_points * 2 * sizeof(float));
+		this->InitVertices();
+	}
 public:
 
-	static Big_array<Wall> walls;
+	static std::vector<Wall> walls;
 	Wall() = default;
 	
 	void UpdateVertices()
@@ -728,6 +747,12 @@ public:
 
 	void InitVertices()
 	{
+		if (this-> vertices)
+		{
+			delete[] this->vertices;
+			delete[] this->vertex_indecies;
+		}
+		
 		this->vertices = new SDL_Vertex[this->num_points+1];
 		this->vertex_indecies = new int[3 * this->num_points];
 
@@ -740,7 +765,7 @@ public:
 			vertex_indecies[j + 2] = i + 1;
 		}
 
-		this->vertices[this->num_points] = { this->center,this->color,{0,0} };
+		this->vertices[this->num_points] = { this->center,{250,180,180},{0,0}};
 		vertex_indecies[3 * num_points-1]=0;
 	}
 
@@ -767,18 +792,7 @@ public:
 		if (!this->InsideScreen())
 			return;
 
-		//this->UpdateVertices();
-		//SDL_Vertex vertices[] = {
-		//	/*{ {320, 240}, {150,150,150}, {0,0} },*/  // Center
-		//	{ {100, 100}, {150,150,150}, {0,0} },  // Top point
-		//	{ {600, 100}, {150,150,150}, {0,0} },  // Bottom point
-		//	{ {600, 600}, {150,150,150}, {0,0} },  // Right point
-		//	{ {100, 500}, {150,150,150}, {0,0} },
-		//	{ {250, 250}, {150,150,150}, {0,0} }
-		//	// Left point
-		//};
-		//int vert_index[] = { 4,0,1,4,1,2,4,2,3,4,3,0 };
-
+		this->UpdateVertices();
 		SDL_RenderGeometry(main_ren, NULL, vertices, num_points+1,vertex_indecies,num_points*3);
 
 		/*float x = center.x - viewpoint.x;
@@ -796,9 +810,39 @@ public:
 
 		SDL_RenderDrawLineF(main_ren, points[0].x + x, points[0].y + y, x, y);*/
 	}
+
+	void LoadWallsFromFile(const char* file_name)
+	{
+		std::ifstream file(file_name, std::ios::binary);
+		if (!file.is_open())
+		{
+			std::cout << " File not found!" << std::endl;
+			return;
+		}
+		int num_obj;
+		file.read((char*)&num_obj, sizeof(int));
+		
+		Wall::walls.resize(num_obj);
+
+		while (num_obj-- > 0)
+		{
+			Wall::walls.emplace_back();
+			Wall::walls.back().ReadFromFile(file);
+		}
+		file.close();
+	}
+
+	~Wall()
+	{
+		if (this->vertices)
+			delete[] this->vertices;
+		if (this->vertex_indecies)
+			delete[] this->vertex_indecies;
+	}
 };
+const short Wall::data_size = sizeof(SDL_FPoint) + 4 * sizeof(float);
 SDL_Color Wall::color = { 180,180,180,255};
-Big_array<Wall> Wall::walls(10);
+std::vector<Wall> Wall::walls;
 
 class Terrain
 {
