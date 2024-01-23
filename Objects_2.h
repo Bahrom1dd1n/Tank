@@ -21,16 +21,17 @@ class Object
 {
 protected:
 	SDL_FPoint center = { 0,0 };// coordinates of object in the play zone
+	
+	float most_right = 0.0F;//distance on x axis to farest point on the right 
+	float most_left = 0.0F;//distance on x axis to farest point in the left , always negative
+	float most_top = 0.0F;//distance on y axis to farest point on the top , always negative
+	float most_bottom = 0.0F;//distance on y axis to farest point on the bottom
+	int num_points = 0;// number of boundary points
+	//---------------------------------------- order should not be chabged
 
 	SDL_FPoint* points = nullptr;// boundary points of polygon
-	int num_points = 0;// number of boundary points
 	//float radious = 0;// distance to farest points2 from center
 	bool fixed = true;
-	
-	float most_right=0.0F;//distance on x axis to farest point on the right 
-	float most_left=0.0F;//distance on x axis to farest point in the left , always negative
-	float most_top=0.0F;//distance on y axis to farest point on the top , always negative
-	float most_bottom=0.0F;//distance on y axis to farest point on the bottom
 
 public:
 	inline Object() {};
@@ -709,8 +710,6 @@ public:
 class Wall :public Object
 {
 private:
-	SDL_Texture* textur = nullptr;
-	SDL_FRect rect;
 	SDL_Vertex* vertices=nullptr;
 	static SDL_Colour color;
 	int* vertex_indecies=nullptr;
@@ -720,17 +719,29 @@ private:
 		if (position > 0)//if position given -1 then it will writo to posion where "write poiter" loacated of file
 			file.seekg(position);
 
-		file.read((char*)this, Wall::data_size);
+		//file.read((char*)this, Wall::data_size);
+		
+		file.read((char*)&this->center, sizeof(SDL_FPoint));
+		file.read((char*)&this->most_right, sizeof(float));
+		file.read((char*)&this->most_left, sizeof(float));
+		file.read((char*)&this->most_top, sizeof(float));
+		file.read((char*)&this->most_bottom, sizeof(float));
+
 		file.read((char*)&num_points, sizeof(int));
-		this->points = new SDL_FPoint;
-		file.read((char*)points, num_points * 2 * sizeof(float));
+		this->points = new SDL_FPoint[num_points];
+		file.read((char*)points, num_points *sizeof(SDL_FPoint));
 		this->InitVertices();
 	}
 public:
 
-	static std::vector<Wall> walls;
+	static std::list<Wall> walls;
 	Wall() = default;
 	
+	Wall(Wall&& obj)
+	{
+
+	}
+
 	void UpdateVertices()
 	{
 		float x = this->center.x - viewpoint.x;
@@ -746,13 +757,7 @@ public:
 	}
 
 	void InitVertices()
-	{
-		if (this-> vertices)
-		{
-			delete[] this->vertices;
-			delete[] this->vertex_indecies;
-		}
-		
+	{		
 		this->vertices = new SDL_Vertex[this->num_points+1];
 		this->vertex_indecies = new int[3 * this->num_points];
 
@@ -765,25 +770,14 @@ public:
 			vertex_indecies[j + 2] = i + 1;
 		}
 
-		this->vertices[this->num_points] = { this->center,{250,180,180},{0,0}};
+		this->vertices[this->num_points] = { this->center,{220,220,220},{0,0}};
 		vertex_indecies[3 * num_points-1]=0;
 	}
 
-	Wall(const SDL_FPoint& center, float w, float h)
+	Wall(const SDL_FPoint& center)
 	{
 		this->center = center;
-		this->rect.w = w;
-		this->rect.h = h;
 		this->fixed = true;
-
-		SDL_FPoint boundary_points[4] = {
-			{-w * 0.5F, -h * 0.5F},
-			{w * 0.5F,-h * 0.5F},
-			{w * 0.5F,h * 0.5F},
-			{-w * 0.5F,h * 0.5F}
-		};
-
-		this->SetPoints(4, boundary_points);
 		this->InitVertices();
 	}
 
@@ -811,7 +805,7 @@ public:
 		SDL_RenderDrawLineF(main_ren, points[0].x + x, points[0].y + y, x, y);*/
 	}
 
-	void LoadWallsFromFile(const char* file_name)
+	static void LoadWallsFromFile(const char* file_name)
 	{
 		std::ifstream file(file_name, std::ios::binary);
 		if (!file.is_open())
@@ -822,7 +816,6 @@ public:
 		int num_obj;
 		file.read((char*)&num_obj, sizeof(int));
 		
-		Wall::walls.resize(num_obj);
 
 		while (num_obj-- > 0)
 		{
@@ -842,7 +835,7 @@ public:
 };
 const short Wall::data_size = sizeof(SDL_FPoint) + 4 * sizeof(float);
 SDL_Color Wall::color = { 180,180,180,255};
-std::vector<Wall> Wall::walls;
+std::list<Wall> Wall::walls;
 
 class Terrain
 {
