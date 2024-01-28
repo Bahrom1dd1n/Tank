@@ -9,6 +9,7 @@
 #include"Big_data_array.h"
 #include<fstream>
 #include<list>
+#include<unordered_map>
 
 const int window_width = 1200;
 const int window_height = 700;
@@ -16,6 +17,7 @@ int time_elapsed;
 
 SDL_FPoint viewpoint = { 0.0f,0.0f };
 SDL_Renderer* main_ren;
+
 
 class Object
 {
@@ -509,8 +511,6 @@ private:
 	unsigned int fire_time = 0;// time since last fire
 	short  reload_time = 800;// time to reload ammo
 
-public:
-
 	Tank(const SDL_FPoint& center, float speed, SDL_Texture* body_image, SDL_Texture* head_image)
 	{
 		this->center = center;
@@ -567,12 +567,12 @@ public:
 		body_to_head.x = (body_rect.w - head_rect.w) * 0.5f;//calculatiing disctance from body_rect.x to head_rect.x
 		body_to_head.y = body_rect.h * 0.5f - head_rect.h * 0.7;// in order draw turret in the center of body
 
-		head_rotate_point = { head_rect.w * 0.5f,head_rect.h * 0.7f };		
+		head_rotate_point = { head_rect.w * 0.5f,head_rect.h * 0.7f };
 		this->points = p_array;
 		this->original_points = op_array;
 		this->num_points = 4;// if boundary points created with object , its num_points must be initialized before calling SetPoints()
 
-		SDL_FPoint edge_points[4] = { 
+		SDL_FPoint edge_points[4] = {
 			{-body_rect.w * 0.5f,-body_rect.h * 0.5f},
 			{body_rect.w * 0.5f,-body_rect.h * 0.5f},
 			{body_rect.w * 0.5f,body_rect.h * 0.5f},
@@ -582,6 +582,21 @@ public:
 		this->SetPoints(4, edge_points);
 	}
 
+	std::list<Tank>::iterator place;
+
+public:
+	
+	//tanks
+
+	static std::list<Tank> tanks;
+	
+	static Tank& Create(const SDL_FPoint& center, float speed, const char* body_path, const char* head_path)
+	{
+		tanks.emplace_front(center, speed, body_path, head_path);
+		tanks.front().place = tanks.begin();
+		return tanks.front();
+	}
+	
 	void SetControlKeys(short front, short back, short right, short left)
 	{
 		this->front = front;
@@ -617,9 +632,6 @@ public:
 
 		this->head_rect.x = this->body_rect.x + this->body_to_head.x;
 		this->head_rect.y = this->body_rect.y + this->body_to_head.y;
-
-		SDL_FRect temp{ this->most_left+this->center.x-viewpoint.x,this->most_top+this->center.y-viewpoint.y,this->most_right - this->most_left,this->most_bottom - this->most_top };
-		SDL_RenderFillRectF(main_ren, &temp);
 
 		SDL_RenderCopyExF(main_ren, this->body, NULL, &(this->body_rect), this->angle, NULL, SDL_FLIP_NONE);
 		SDL_RenderCopyExF(main_ren, this->head, NULL, &(this->head_rect), this->head_angle, &head_rotate_point, SDL_FLIP_NONE);
@@ -706,6 +718,8 @@ public:
 
 	friend class Terrain;
 };
+std::list<Tank> Tank::tanks;
+
 
 class Wall :public Object
 {
