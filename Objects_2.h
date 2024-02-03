@@ -18,6 +18,135 @@ int time_elapsed;
 SDL_FPoint viewpoint = { 0.0f,0.0f };
 SDL_Renderer* main_ren;
 
+class Texture
+{
+private:
+	SDL_Texture* texture=nullptr;
+	int* info = nullptr;// information about texture, info[0] = use_count , info[1] = width, info[2] = height
+public:
+
+	inline Texture() = default;
+
+	inline Texture(Texture& t)
+	{
+		if (!t.info)
+			return;
+		this->texture = t.texture;
+		this->info = t.info;
+		*this->info++;// another Texture created on top of SDL_Texture* so , 
+		//number of Textures using same SDL_Texture increments by 1
+	}
+
+	inline Texture(Texture&& t)noexcept
+	{
+
+		if (!t.info)
+			return;
+		
+		this->texture = t.texture;
+		this->info = t.info;
+		t.info = nullptr;
+		t.texture = nullptr;
+	}
+	
+	inline Texture(const char* path)
+	{
+		SDL_Texture* temp = IMG_LoadTexture(main_ren, path);
+		if (!temp)
+		{
+			printf("Couldn't load texture\n");
+			return;
+		}
+		printf("Texture Succesfully loaded\n");
+		texture = temp;
+		info = new int[3] {1};
+		SDL_QueryTexture(texture, NULL, NULL, info+1, info+2);
+	}
+
+	inline Texture& operator=(Texture& t)
+	{
+		if (this->info)
+		{
+			if (*this->info > 1)
+				*this->info--;
+			else
+			{
+				SDL_DestroyTexture(this->texture);
+				delete this->info;
+			}
+		}
+		
+		if (t.info)
+		{
+			*t.info++;
+			this->info = t.info;
+			this->texture = t.texture;
+		}
+
+		return *this;
+	}
+
+	inline void Load(const char* path)throw (std::exception)
+	{
+		SDL_Texture* temp = IMG_LoadTexture(main_ren, path);
+		if (!temp)
+			throw std::exception("Cannot load texture");
+		if (this->info)
+		{
+			if (*info == 1)
+			{
+				SDL_DestroyTexture(this->texture);
+			}
+			else
+			{
+				*info--;
+				this->info = new int[3] {1};
+			}
+		}
+		else this->info = new int[3] {1};
+		SDL_QueryTexture(temp, NULL, NULL, info+1, info+2);
+		texture = temp;
+	}
+
+	inline void Render(const SDL_FRect* dst_rect,const SDL_Rect* src_rect=NULL)
+	{
+		if (!this->info)
+			return;
+		SDL_RenderCopyF(main_ren, this->texture, src_rect, dst_rect);
+	}
+
+	inline void Render(const SDL_FRect* dst_rect, const float angle, const SDL_FPoint* center=NULL,const SDL_Rect* src_rect=NULL)
+	{
+		if (!this->info)
+			return;
+		SDL_RenderCopyExF(main_ren, this->texture, src_rect, dst_rect,angle,center, SDL_FLIP_NONE);
+	}
+
+	inline int GetHeight()
+	{
+		return info[2];
+	}
+
+	inline int GetWidth()
+	{
+		return info[1];
+	}
+
+	inline ~Texture()
+	{
+		if (this->info)
+		{
+			if (*this->info == 1)
+			{
+				SDL_DestroyTexture(this->texture);
+				delete[] this->info;
+				info = nullptr;
+				return;
+			}
+			*this->info--;
+		}
+	}
+};
 
 class Object
 {
@@ -298,17 +427,14 @@ class MovingObject :public Object
 protected:
 	SDL_FPoint* original_points = nullptr;// boundary points of polygon when it is not rotated
 	float angle = 0;//rotated angle
-	float speed = 0;// moving speed 
 	float cos_a = 1;
 	float sin_a = 0;
-	short forward = 0;
 public:
 
 	MovingObject() {};
 
-	MovingObject(SDL_FPoint center, int num_points, SDL_FPoint* boundary_points, float speed) :Object(center, num_points, boundary_points)
+	MovingObject(SDL_FPoint center, int num_points, SDL_FPoint* boundary_points) :Object(center, num_points, boundary_points)
 	{
-		this->speed = speed;
 		this->original_points = new SDL_FPoint[num_points];
 		memcpy(this->original_points, boundary_points, num_points);
 	}
@@ -350,13 +476,18 @@ public:
 		this->most_bottom = m_b;
 	}
 
-	void MoveForward()
+	inline void MoveForward(float ds)
 	{
-		if (!forward)
+		if (!ds)
 			return;
-		float distance = this->forward * this->speed * time_elapsed;
-		this->center.x += distance * this->sin_a;
-		this->center.y -= distance * this->cos_a;
+		this->center.x += ds * this->sin_a;
+		this->center.y -= ds * this->cos_a;
+	}
+
+	inline void MoveBy(float dx, float dy)
+	{
+		this->center.x += dx;
+		this->center.y += dy;
 	}
 
 	void RotateBy(float da)
@@ -406,37 +537,27 @@ public:
 	}
 
 	friend class Terrain;
+	friend class Controller;
 };
 
 class Bullet :public MovingObject
 {
-private:
+public:
 	SDL_FPoint p_array[2];
 	SDL_FPoint op_array[2];
 
 	SDL_FRect rect;
 	int life_time = 0;
-	static float velocity;
-public:
-	static SDL_Texture* bullet_texture;
-	static Big_array<Bullet> bullets;
-
-	inline Bullet() {};
-
-	Bullet(const SDL_FPoint& center,const float& angle)
+	static float bullet_speed;
+	Bullet(const SDL_FPoint& center, const float& angle)
 	{
 		this->center = center;
-		this->speed = Bullet::velocity;
-		int w = 0, h = 0;
-		SDL_QueryTexture(bullet_texture, NULL, NULL, &w, &h);
-		this->rect = { center.x - w * 0.5f,center.y - h * 0.5f,float(w),float(h) };
-		this->forward = 1;
-
+		this->rect = {0.0F,0.0F,float(bullet_texture.GetWidth()),float(bullet_texture.GetHeight()) };
 		this->num_points = 2;
 		this->points = p_array;
 		this->original_points = op_array;
 
-		SDL_FPoint boundary_points[2] = { 
+		SDL_FPoint boundary_points[2] = {
 			{0.0F,-this->rect.h * 0.5f},
 			{0.0F,this->rect.h * 0.5f}
 		};
@@ -446,7 +567,18 @@ public:
 		this->angle = 0;// angle of bullet will not change 
 		this->RotateBy(angle);// so once it is created its angle rotated once
 	}
-	
+	std::list<Bullet>::const_iterator turn;
+public:
+	static Texture bullet_texture;
+	static std::list<Bullet> bullets;
+
+	inline static Bullet& Create(const SDL_FPoint& center, const float& angle)
+	{
+		bullets.emplace_front(center, angle);
+		bullets.front().turn = bullets.begin();
+		return bullets.front();
+	}
+
 	void Render()
 	{
 		if (!this->InsideScreen())
@@ -454,19 +586,20 @@ public:
 		this->rect.x = this->center.x - viewpoint.x - this->rect.w * 0.5f;
 		this->rect.y = this->center.y - viewpoint.y - this->rect.h * 0.5f;
 
-		SDL_RenderCopyExF(main_ren, this->bullet_texture, NULL, &(this->rect), this->angle, NULL, SDL_FLIP_NONE);
+		bullet_texture.Render(&rect, angle, NULL, NULL);
+		//SDL_RenderCopyExF(main_ren, this->bullet_texture, NULL, &(this->rect), this->angle, NULL, SDL_FLIP_NONE);
 	}
 
-	bool Move(Big_array<Bullet>::Iterator &iter)
+	bool Move()
 	{
 		life_time += time_elapsed;
 		if (life_time > 2000)
 		{
-			Bullet::bullets.Remove(iter);
+			Bullet::bullets.erase(turn);
 			return false;
 		}
 
-		this->MoveForward();
+		this->MoveForward(Bullet::bullet_speed*time_elapsed);
 		this->Render();
 
 		return true;
@@ -477,41 +610,40 @@ public:
 		this->points = this->original_points = nullptr;
 	}
 };
-Big_array<Bullet> Bullet::bullets(40);
-SDL_Texture* Bullet::bullet_texture=nullptr;// bullet_texture must be initialized in main !!!
-float Bullet::velocity = 0.5f;
+std::list<Bullet> Bullet::bullets;
+Texture Bullet::bullet_texture;// bullet_texture must be initialized in main !!!
+float Bullet::bullet_speed = 0.5f;
 
 
 class Tank :public MovingObject
 {
-private:
+public:
 
 	SDL_FPoint p_array[4];// boundary points of polygon when it is rotated (it will created dynamically)
 	SDL_FPoint op_array[4];// boundary points of polygon when it is "not" rotated (it will created dynamically)
-	SDL_Texture* body;// texture of body of the tank
-	SDL_Texture* head;// texture of the turret
-
+	Texture body;// texture of body of the tank
+	Texture head;// texture of the turret
 	SDL_FRect body_rect;
 	SDL_FRect head_rect;
 
-	float head_angle;// angle of turret
+	char moving = 0;
+	char rotating = 0;
 
-	float body_rotate = 0.0f;// is body of the tank rotating(0: not rotating; >0: roating right ;<0 rotatong left)
+	float speed=0;
+	float ang_speed = 0.0f;// is body of the tank rotating(0: not rotating; >0: roating right ;<0 rotatong left)
+
+	float head_angle;// angle of turret
 
 	SDL_FPoint body_to_head;//distance from body_rect to head_rect
 	SDL_FPoint head_rotate_point;// the turret will rotate relative to this point
 	//control keys:
 	
-	short front;
-	short back;
-	short right;
-	short left;
-	
 	short health = 100;// hp of player
 	unsigned int fire_time = 0;// time since last fire
-	short  reload_time = 800;// time to reload ammo
+	short reload_time = 800;// time to reload ammo
 
-	Tank(const SDL_FPoint& center, float speed, SDL_Texture* body_image, SDL_Texture* head_image)
+	Tank(const SDL_FPoint& center, float speed, Texture& body_image, Texture& head_image)
+		:head(head_image), body(body_image)
 	{
 		this->center = center;
 		this->speed = speed;
@@ -519,16 +651,9 @@ private:
 		this->body = body_image;
 		this->fixed = false;
 
-		// taking dimensions of textures
-		int w = 0, h = 0;
-		SDL_QueryTexture(body_image, NULL, NULL, &w, &h);
-		this->body_rect.w = float(w);
-		this->body_rect.h = float(h);
-
-		SDL_QueryTexture(head_image, NULL, NULL, &w, &h);
-		this->head_rect.w = float(w);
-		this->head_rect.h = float(h);
-
+		body_rect = { 0,0,(float)body.GetWidth(),(float)body.GetHeight() };
+		head_rect = { 0,0,(float)head.GetWidth(),(float)head.GetHeight() };
+		
 		body_to_head.x = (body_rect.w - head_rect.w) * 0.5f;//calculatiing disctance from body_rect.x to head_rect.x
 		body_to_head.y = body_rect.h * 0.5f - head_rect.h * 0.7;// in order draw turret in the center of body
 
@@ -549,21 +674,14 @@ private:
 	}
 
 	Tank(const SDL_FPoint& center, float speed, const char* body_path, const char* head_path)
+		:head(head_path),body(body_path)
 	{
 		this->center = center;
 		this->speed = speed;
 		this->fixed = false;
-		SDL_Surface* surf = IMG_Load(head_path);
-		this->head = SDL_CreateTextureFromSurface(main_ren, surf);
-
-		this->head_rect = { center.x - surf->w,center.y - surf->h,float(surf->w),float(surf->h) };
-		SDL_FreeSurface(surf);
-
-		surf = IMG_Load(body_path);
-		this->body = SDL_CreateTextureFromSurface(main_ren, surf);
-		this->body_rect = { center.x - surf->w * 0.5f,center.y - surf->h * 0.5f,float(surf->w),float(surf->h) };
-		SDL_FreeSurface(surf);
-
+		body_rect = { 0,0,(float)body.GetWidth(),(float)body.GetHeight() };
+		head_rect = { 0,0,(float)head.GetWidth(),(float)head.GetHeight() };
+		
 		body_to_head.x = (body_rect.w - head_rect.w) * 0.5f;//calculatiing disctance from body_rect.x to head_rect.x
 		body_to_head.y = body_rect.h * 0.5f - head_rect.h * 0.7;// in order draw turret in the center of body
 
@@ -582,7 +700,7 @@ private:
 		this->SetPoints(4, edge_points);
 	}
 
-	std::list<Tank>::iterator place;
+	std::list<Tank>::iterator turn;
 
 public:
 	
@@ -593,16 +711,8 @@ public:
 	static Tank& Create(const SDL_FPoint& center, float speed, const char* body_path, const char* head_path)
 	{
 		tanks.emplace_front(center, speed, body_path, head_path);
-		tanks.front().place = tanks.begin();
+		tanks.front().turn = tanks.begin();
 		return tanks.front();
-	}
-	
-	void SetControlKeys(short front, short back, short right, short left)
-	{
-		this->front = front;
-		this->back = back;
-		this->right = right;
-		this->left = left;
 	}
 
 	void RotateTurretToPoint(float x, float y)
@@ -632,52 +742,8 @@ public:
 
 		this->head_rect.x = this->body_rect.x + this->body_to_head.x;
 		this->head_rect.y = this->body_rect.y + this->body_to_head.y;
-
-		SDL_RenderCopyExF(main_ren, this->body, NULL, &(this->body_rect), this->angle, NULL, SDL_FLIP_NONE);
-		SDL_RenderCopyExF(main_ren, this->head, NULL, &(this->head_rect), this->head_angle, &head_rotate_point, SDL_FLIP_NONE);
-	}
-
-	bool Control_Keydown(short key)// returns true if gven key is control key of the tank 
-	{
-		if (key == this->front)
-		{
-			this->forward = 1;
-			return true;
-		}
-		if (key == this->back)
-		{
-			this->forward = -1;
-			return true;
-		}
-
-		if (key == this->left)
-		{
-			this->body_rotate = -0.1f;
-			return true;
-		}
-		if (key == this->right)
-		{
-			this->body_rotate = 0.1f;
-			return true;
-		}
-
-		return false;
-	}
-
-	bool Control_Keyup(short key)// returns true if gven key is control key of the tank 
-	{
-		if (key == this->front || key == this->back)
-		{
-			this->forward = 0;
-			return true;
-		}
-
-		if (key == this->right || key == this->left)
-		{
-			this->body_rotate = 0.0f;
-			return true;
-		}
-		return false;
+		body.Render(&body_rect,this->angle);
+		head.Render(&head_rect, head_angle, &head_rotate_point);
 	}
 
 	void Fire()
@@ -689,37 +755,93 @@ public:
 		float rad = this->head_angle * (M_PI / 180);
 
 		SDL_FPoint p = { this->center.x + head_rotate_point.y * sinf(rad), this->center.y - this->head_rotate_point.y * cosf(rad) };
-		Bullet::bullets.Emplace_back(p, this->head_angle);
+		Bullet::Create(p, this->head_angle);
 	}
 
 	void Move()
 	{
-		this->MoveForward();
+		if (moving)
+			MoveForward(moving * speed * time_elapsed);
 
-		float distance = this->forward * this->speed * time_elapsed;
-		viewpoint.x += distance * this->sin_a;
-		viewpoint.y -= distance * this->cos_a;
+		if (rotating)
+			RotateBy(ang_speed * time_elapsed);
 
-		this->RotateBy(body_rotate * time_elapsed);
-		this->Render();
-		
-		if(this->fire_time<=this->reload_time)
-			this->fire_time += time_elapsed;
+		Render();
+
+		if (fire_time <= reload_time)
+			fire_time += time_elapsed;
 	}
 
 	~Tank()
 	{
 		this->points = this->original_points = nullptr;
-		SDL_DestroyTexture(this->head);
-		SDL_DestroyTexture(this->body);
 	}
 
 	Tank() = default;
 
 	friend class Terrain;
+	friend class std::list<Bullet>;
 };
 std::list<Tank> Tank::tanks;
 
+class Controller
+{
+private:
+	Tank& target;
+	short front=0;
+	short back=0;
+	short right=0;
+	short left=0;
+public:
+	inline Controller(Tank& target, const short front,const short back,const short right,const short left)
+		:target(target),front(front),back(back),right(right),left(left){}
+	inline bool OnKeyDown(const short key)
+	{
+		if (key == front)
+		{
+			target.moving = 1;
+			return true;
+		}
+		if (key == back)
+		{
+			target.moving = -1;
+			return true;
+		}
+		if (key == right)
+		{
+			target.rotating = 1;
+			return true;
+		}
+
+		if (key == left)
+		{
+			target.rotating = -1;
+			return true;
+		}
+		return false;
+	}
+
+	inline bool OnKeyUp(const short key)
+	{
+		if (key == front || key == back)
+		{
+			target.moving = 0;
+			return true;
+		}
+
+		if (key == right || key == left)
+		{
+			target.rotating = 0;
+			return true;
+		}
+		return false;
+	}
+
+	inline Tank& GetTareget()
+	{
+		return target;
+	}
+};
 
 class Wall :public Object
 {
@@ -854,12 +976,11 @@ std::list<Wall> Wall::walls;
 class Terrain
 {
 private:
-	SDL_Renderer* ren;
 	SDL_Texture* texture;
 	SDL_FRect dstrect;
 
-	Tank* main_char;
-	SDL_FPoint char_position = { 0.0F,0.0F };// positon of main charrracter inside screen
+	Tank& target;
+	SDL_FPoint target_position = { 0.0F,0.0F };// positon of main charrracter inside screen
 
 	float x = 0.0f, y = 0.0f;// starting position of drawing seamles(continious) texture
 
@@ -869,13 +990,11 @@ public:
 	bool moving = false;
 	float dx = 0.0f, dy = 0.0f;// speed of movement
 
-	Terrain(SDL_Renderer* renderer, const char* texture_path, int screen_width, int screen_height, Tank* main_charracter,const SDL_FPoint& main_char_posion)
+	Terrain(const char* texture_path, int screen_width, int screen_height, Tank& target, const SDL_FPoint& target_posiotion = {window_width*0.5F,window_height*0.5F})
+		:target(target), target_position(target_posiotion)
 	{
-		this->ren = renderer;
-		this->main_char = main_charracter;
-		this->char_position = main_char_posion;
 		SDL_Surface* surf = IMG_Load(texture_path);
-		texture = SDL_CreateTextureFromSurface(renderer, surf);
+		texture = SDL_CreateTextureFromSurface(main_ren, surf);
 		dstrect.w = surf->w;
 		dstrect.h = surf->h;
 		row = screen_height / surf->h + 2;
@@ -891,32 +1010,32 @@ public:
 			for (int j = 0; j < row; j++)
 			{
 				dstrect.y = y + j * dstrect.h;
-				SDL_RenderCopyF(ren, this->texture, NULL, &dstrect);
+				SDL_RenderCopyF(main_ren, this->texture, NULL, &dstrect);
 			}
 		}
 	}
 
 	void Move()
 	{
-		if (main_char->forward||main_char->body_rotate) {
+		if (target.moving||target.rotating) {
 
-			if (x >= 0)
+			if (x > 0)
 				x -= dstrect.w;
 			else
-				if (x <= -dstrect.w)
-					x = 0.0f;
+				if (x < -dstrect.w)
+					x += dstrect.w;
 
-			if (y >= 0)
+			if (y > 0)
 				y -= dstrect.h;
 			else
-				if (y <= -dstrect.h)
-					y = 0.0f;
+				if (y < -dstrect.h)
+					y += dstrect.h;
 
 			float x1 = viewpoint.x;
 			float y1 = viewpoint.y;
 
-			viewpoint.x = main_char->center.x - char_position.x;
-			viewpoint.y = main_char->center.y - char_position.y;
+			viewpoint.x = target.center.x - target_position.x;
+			viewpoint.y = target.center.y - target_position.y;
 
 			this->x += x1-viewpoint.x;
 			this->y += y1-viewpoint.y;

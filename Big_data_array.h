@@ -174,7 +174,7 @@ public:
 	}
 
 	template<typename...ARGS>
-	inline void Emplace_back(ARGS&&...args)// creates object at the and of the list. no need to create temorary object
+	inline void EmplaceBack(ARGS&&...args)// creates object at the and of the list. no need to create temorary object
 	{
 		if (size >= capacity)
 			return;
@@ -183,6 +183,11 @@ public:
 		new(&this->back->data)T(args...);
 
 		this->back = this->back->next;
+	}
+
+	inline T& Front()
+	{
+		return front->data;
 	}
 
 	~Big_array()

@@ -14,10 +14,10 @@ void Run()
 {
 	bool running = true;
 
-	Tank player({ window_width * 0.5f,window_height * 0.5f }, 0.3f, "Sources/hull.png", "Sources/turret.png");
-	player.SetControlKeys(26, 22, 7, 4);
-	Bullet::bullet_texture = IMG_LoadTexture(main_ren, "Sources/bullet.png");
-	Terrain ground(main_ren, "Sources/grass.png", window_width, window_height, &player, { window_width * 0.5F, window_height * 0.5F });
+	
+	Controller player(Tank::Create({ window_width * 0.5f,window_height * 0.5f }, 0.1f, "Sources/hull.png", "Sources/turret.png"),26, 22, 7, 4);
+	Bullet::bullet_texture.Load("Sources/bullet.png");
+	//Terrain ground(main_ren, "Sources/grass.png", window_width, window_height, &player, { window_width * 0.5F, window_height * 0.5F });
 	Wall::LoadWallsFromFile("map");
 	int old_key = 0;
 	auto keydown = [&](int key)
@@ -25,7 +25,7 @@ void Run()
 		if (key == old_key)
 			return;
 
-		player.Control_Keydown(key);
+		player.OnKeyDown(key);
 
 		old_key = key;
 		std::cout << " key value: " << key << std::endl;
@@ -33,56 +33,52 @@ void Run()
 	auto keyup = [&](int key)
 	{
 		old_key = 0;
-		player.Control_Keyup(key);
+		player.OnKeyUp(key);
 	};
 	auto mousemove = [&](int x, int y)
 	{
-		player.RotateTurretToPoint(float(x) + viewpoint.x, float(y) + viewpoint.y);
+		player.GetTareget().RotateTurretToPoint(float(x) + viewpoint.x, float(y) + viewpoint.y);
 	};
 	auto mousedown = [&](int x, int y)
 	{
-		player.Fire();
-		std::cout << " bullets: " << Bullet::bullets.GetSize() << '\n';
+		player.GetTareget().Fire();
+		std::cout << " bullets: " << Bullet::bullets.size() << '\n';
 	};
 	auto update = [&]() {
-		player.Move();
+		
+		player.MoveTarget();
 
-		auto it = Bullet::bullets.Begin();
-		for (int i = 0; i < Bullet::bullets.GetSize(); i++)
+		auto next = Bullet::bullets.begin();
+		while(next != Bullet::bullets.end())
 		{
-			auto p = it;
-			it.operator++();
 			bool hit = false;
-			Bullet* bullet = p.GetData();
-
-			auto it2 = Wall::walls.begin();
-			for (int i = 0; i < Wall::walls.size(); i++)
+			auto it = next;
+			next++;
+			
+			for (auto it2 = Wall::walls.begin(); it2!=Wall::walls.end(); it2++)
 			{
-				if (bullet->Collision(&(*it2)))
+				if (it->Collision(&(*it2)))
 				{
-					Bullet::bullets.Remove(p);
+					Bullet::bullets.erase(it);
 					hit = true;
 					std::cout << " Hit \n";
 					break;
 				}
-				++it2;
 			}
 
 			if (hit)
 				continue;
 
-			bullet->Move(p);
+			it->Move();
 		}
 
-		auto it2 = Wall::walls.begin();
-		for (int i = 0; i < Wall::walls.size(); i++)
+		for (auto it = Wall::walls.begin(); it!= Wall::walls.end(); it++)
 		{
-			Wall* wall = &(*it2);
+			Wall* wall = &(*it);
 
-			player.StaticCollision(wall);
+			player.GetTareget().StaticCollision(wall);
 
 			wall->Render();
-			++it2;
 		}
 
 		SDL_RenderPresent(main_ren);
@@ -141,8 +137,6 @@ int main(int argc, char* args[])
 	main_ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
 
 	::Run();
-
-	SDL_DestroyTexture(Bullet::bullet_texture);
 	SDL_DestroyRenderer(main_ren);
 	SDL_DestroyWindow(win);
 	return 0;
