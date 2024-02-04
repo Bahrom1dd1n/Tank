@@ -340,8 +340,8 @@ public:
 
 					if (t1 >= 0.0f && t1 < 1.0f && t2 >= 0.0f && t2 < 1.0f)
 					{
-						displacement.x = (1.0f - t1) * dx1*2.2F;
-						displacement.y = (1.0f - t1) * dy1*2.2F;
+						displacement.x = (1.0f - t1) * dx1;
+						displacement.y = (1.0f - t1) * dy1;
 
 						if (poly1->fixed)
 						{
@@ -549,7 +549,9 @@ public:
 	SDL_FRect rect;
 	int life_time = 0;
 	static float bullet_speed;
-	Bullet(const SDL_FPoint& center, const float& angle)
+	short owner_id = 0;// id of Tank 
+	Bullet(const SDL_FPoint& center, const float& angle, const short& owner_id)
+		:owner_id(owner_id)
 	{
 		this->center = center;
 		this->rect = {0.0F,0.0F,float(bullet_texture.GetWidth()),float(bullet_texture.GetHeight()) };
@@ -572,14 +574,14 @@ public:
 	static Texture bullet_texture;
 	static std::list<Bullet> bullets;
 
-	inline static Bullet& Create(const SDL_FPoint& center, const float& angle)
+	inline static Bullet& Create(const SDL_FPoint& center, const float& angle,const short& owner_id)
 	{
-		bullets.emplace_front(center, angle);
+		bullets.emplace_front(center, angle,owner_id);
 		bullets.front().turn = bullets.begin();
 		return bullets.front();
 	}
 
-	void Render()
+	inline void Render()
 	{
 		if (!this->InsideScreen())
 			return;
@@ -590,7 +592,7 @@ public:
 		//SDL_RenderCopyExF(main_ren, this->bullet_texture, NULL, &(this->rect), this->angle, NULL, SDL_FLIP_NONE);
 	}
 
-	bool Move()
+	inline bool Move()
 	{
 		life_time += time_elapsed;
 		if (life_time > 2000)
@@ -605,6 +607,11 @@ public:
 		return true;
 	}
 
+	inline short GetOwner()
+	{
+		return this->owner_id;
+	}
+
 	inline ~Bullet()
 	{
 		this->points = this->original_points = nullptr;
@@ -612,7 +619,7 @@ public:
 };
 std::list<Bullet> Bullet::bullets;
 Texture Bullet::bullet_texture;// bullet_texture must be initialized in main !!!
-float Bullet::bullet_speed = 0.5f;
+float Bullet::bullet_speed = 1.0f;
 
 
 class Tank :public MovingObject
@@ -626,11 +633,13 @@ public:
 	SDL_FRect body_rect;
 	SDL_FRect head_rect;
 
-	char moving = 0;
-	char rotating = 0;
+	char moving = 0;// if moving > 0 : moving forward, < 0: backwards, 0: not moving
+	char rotating = 0;// if rotating > 0: rotating right , < 0 : rotating left, 0: not ratating 
+	short id = 0;
+	static short last_id;
 
-	float speed=0;
-	float ang_speed = 0.0f;// is body of the tank rotating(0: not rotating; >0: roating right ;<0 rotatong left)
+	float speed=0.0F;
+	float ang_speed = 0.0F;// is body of the tank rotating(0: not rotating; >0: roating right ;<0 rotatong left)
 
 	float head_angle;// angle of turret
 
@@ -638,12 +647,12 @@ public:
 	SDL_FPoint head_rotate_point;// the turret will rotate relative to this point
 	//control keys:
 	
-	short health = 100;// hp of player
+	short health = 100;// hp of player	
 	unsigned int fire_time = 0;// time since last fire
-	short reload_time = 800;// time to reload ammo
+	short reload_time = 80;// time to reload ammo
 
-	Tank(const SDL_FPoint& center, float speed, Texture& body_image, Texture& head_image)
-		:head(head_image), body(body_image)
+	inline Tank(const SDL_FPoint& center, float speed,float ang_speed, Texture& body_image, Texture& head_image)
+		:head(head_image), body(body_image),ang_speed(ang_speed)
 	{
 		this->center = center;
 		this->speed = speed;
@@ -673,8 +682,8 @@ public:
 		this->SetPoints(4, edge_points);
 	}
 
-	Tank(const SDL_FPoint& center, float speed, const char* body_path, const char* head_path)
-		:head(head_path),body(body_path)
+	inline Tank(const SDL_FPoint& center, float speed,float ang_speed, const char* body_path, const char* head_path)
+		:head(head_path),body(body_path),ang_speed(ang_speed)
 	{
 		this->center = center;
 		this->speed = speed;
@@ -698,6 +707,8 @@ public:
 		};
 
 		this->SetPoints(4, edge_points);
+		this->id = last_id;
+		last_id += 10;
 	}
 
 	std::list<Tank>::iterator turn;
@@ -708,14 +719,26 @@ public:
 
 	static std::list<Tank> tanks;
 	
-	static Tank& Create(const SDL_FPoint& center, float speed, const char* body_path, const char* head_path)
+	inline static Tank& Create(const SDL_FPoint& center, float speed,float ang_speed, const char* body_path, const char* head_path)
 	{
-		tanks.emplace_front(center, speed, body_path, head_path);
+		tanks.emplace_front(center, speed,ang_speed, body_path, head_path);
 		tanks.front().turn = tanks.begin();
 		return tanks.front();
 	}
 
-	void RotateTurretToPoint(float x, float y)
+	/*static void UpdateTanks()
+	{
+		for (auto tank = Tank::tanks.begin(); tank != Tank::tanks.end(); tank++)
+		{
+			for (auto wall = Wall::walls.begin(); wall != Wall::walls.end(); wall++)
+				tank->StaticCollision(&(*wall));
+
+			tank->Move();
+			tank->Render();
+		}
+	}*/
+	
+	inline void RotateTurretToPoint(float x, float y)
 	{
 		float px = x - this->center.x;
 		float py = this->center.y - y;
@@ -733,7 +756,7 @@ public:
 			head_angle += 180;
 	}
 
-	void Render()
+	inline void Render()
 	{
 		if (!this->InsideScreen())
 			return;
@@ -746,30 +769,37 @@ public:
 		head.Render(&head_rect, head_angle, &head_rotate_point);
 	}
 
-	void Fire()
+	inline void Fire()
 	{
-		std::cout << " fire time = " << fire_time << '\n';
 		if (fire_time < reload_time)
 			return;
+
 		fire_time = 0;
-		float rad = this->head_angle * (M_PI / 180);
+		const float to_rad = (M_PI / 180);
+		float rad = this->head_angle * to_rad;
 
 		SDL_FPoint p = { this->center.x + head_rotate_point.y * sinf(rad), this->center.y - this->head_rotate_point.y * cosf(rad) };
-		Bullet::Create(p, this->head_angle);
+		Bullet::Create(p, this->head_angle,id);
 	}
 
-	void Move()
+	inline void Move()
 	{
 		if (moving)
 			MoveForward(moving * speed * time_elapsed);
+		
 
 		if (rotating)
-			RotateBy(ang_speed * time_elapsed);
+			RotateBy(rotating * ang_speed * time_elapsed);
 
 		Render();
 
 		if (fire_time <= reload_time)
 			fire_time += time_elapsed;
+	}
+
+	inline short GetID()
+	{
+		return id;
 	}
 
 	~Tank()
@@ -782,6 +812,7 @@ public:
 	friend class Terrain;
 	friend class std::list<Bullet>;
 };
+short Tank::last_id = 100;
 std::list<Tank> Tank::tanks;
 
 class Controller
@@ -812,7 +843,6 @@ public:
 			target.rotating = 1;
 			return true;
 		}
-
 		if (key == left)
 		{
 			target.rotating = -1;
@@ -985,12 +1015,11 @@ private:
 	float x = 0.0f, y = 0.0f;// starting position of drawing seamles(continious) texture
 
 	int row = 0, col = 0;// number of col and row to fill screeen with texture
-
 public:
 	bool moving = false;
 	float dx = 0.0f, dy = 0.0f;// speed of movement
 
-	Terrain(const char* texture_path, int screen_width, int screen_height, Tank& target, const SDL_FPoint& target_posiotion = {window_width*0.5F,window_height*0.5F})
+	Terrain(const char* texture_path, int screen_width, int screen_height, Tank& target, const SDL_FPoint& target_posiotion)
 		:target(target), target_position(target_posiotion)
 	{
 		SDL_Surface* surf = IMG_Load(texture_path);
@@ -1033,12 +1062,13 @@ public:
 
 			float x1 = viewpoint.x;
 			float y1 = viewpoint.y;
-
-			viewpoint.x = target.center.x - target_position.x;
-			viewpoint.y = target.center.y - target_position.y;
-
-			this->x += x1-viewpoint.x;
-			this->y += y1-viewpoint.y;
+			
+			float temp = target.moving * time_elapsed * target.speed;
+			
+			viewpoint.x = target.center.x + target.sin_a * temp - target_position.x;
+			viewpoint.y = target.center.y - target.cos_a * temp - target_position.y;
+			x -= viewpoint.x - x1;
+			y -= viewpoint.y - y1;
 		}
 
 		this->Render();
@@ -1049,4 +1079,59 @@ public:
 		SDL_DestroyTexture(this->texture);
 	}
 };
+
+void UpdateObjects()
+{
+	auto next = Bullet::bullets.begin();
+	while (next != Bullet::bullets.end())
+	{
+		bool hit = false;
+		auto it = next;
+		next++;
+
+		for (auto it2 = Wall::walls.begin(); it2 != Wall::walls.end(); it2++)
+		{
+			if (it->Collision(&(*it2)))
+			{
+				Bullet::bullets.erase(it);
+				hit = true;
+				std::cout << " Hit \n";
+				break;
+			}
+		}
+		if (hit)
+			continue;
+
+		for (auto it2 = Tank::tanks.begin(); it2 != Tank::tanks.end(); it2++)
+		{
+			if (it2->GetID() == it->GetOwner())
+				continue;
+			if (it->Collision(&(*it2)))
+			{
+				Bullet::bullets.erase(it);
+				hit = true;
+				std::cout << " Hit \n";
+				break;
+			}
+		}
+
+
+		if (hit)
+			continue;
+
+		it->Move();
+	}
+
+	for (auto tank = Tank::tanks.begin(); tank != Tank::tanks.end(); tank++)
+	{
+		for (auto wall = Wall::walls.begin(); wall != Wall::walls.end(); wall++)
+			tank->StaticCollision(&(*wall));
+
+		tank->Move();
+		tank->Render();
+	}
+
+	for (auto wall = Wall::walls.begin(); wall != Wall::walls.end(); wall++)
+		wall->Render();
+}
 #endif // !__Objects__

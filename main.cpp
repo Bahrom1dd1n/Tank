@@ -15,12 +15,12 @@ void Run()
 	bool running = true;
 
 	
-	Controller player(Tank::Create({ window_width * 0.5f,window_height * 0.5f }, 0.1f, "Sources/hull.png", "Sources/turret.png"),26, 22, 7, 4);
+	Controller player(Tank::Create({ window_width * 0.5f,window_height * 0.5f }, 0.1F,0.1F, "Sources/hull.png", "Sources/turret.png"),26, 22, 7, 4);
 	Bullet::bullet_texture.Load("Sources/bullet.png");
-	//Terrain ground(main_ren, "Sources/grass.png", window_width, window_height, &player, { window_width * 0.5F, window_height * 0.5F });
+	Terrain ground("Sources/grass.png", window_width, window_height, player.GetTareget(), {window_width * 0.5F, window_height * 0.5F});
 	Wall::LoadWallsFromFile("map");
 	int old_key = 0;
-	auto keydown = [&](int key)
+	const auto keydown = [&](int key)
 	{
 		if (key == old_key)
 			return;
@@ -30,58 +30,19 @@ void Run()
 		old_key = key;
 		std::cout << " key value: " << key << std::endl;
 	};
-	auto keyup = [&](int key)
+	const auto keyup = [&](int key)
 	{
 		old_key = 0;
 		player.OnKeyUp(key);
 	};
-	auto mousemove = [&](int x, int y)
+	const auto mousemove = [&](int x, int y)
 	{
 		player.GetTareget().RotateTurretToPoint(float(x) + viewpoint.x, float(y) + viewpoint.y);
 	};
-	auto mousedown = [&](int x, int y)
+	const auto mousedown = [&](int x, int y)
 	{
 		player.GetTareget().Fire();
 		std::cout << " bullets: " << Bullet::bullets.size() << '\n';
-	};
-	auto update = [&]() {
-		
-		player.MoveTarget();
-
-		auto next = Bullet::bullets.begin();
-		while(next != Bullet::bullets.end())
-		{
-			bool hit = false;
-			auto it = next;
-			next++;
-			
-			for (auto it2 = Wall::walls.begin(); it2!=Wall::walls.end(); it2++)
-			{
-				if (it->Collision(&(*it2)))
-				{
-					Bullet::bullets.erase(it);
-					hit = true;
-					std::cout << " Hit \n";
-					break;
-				}
-			}
-
-			if (hit)
-				continue;
-
-			it->Move();
-		}
-
-		for (auto it = Wall::walls.begin(); it!= Wall::walls.end(); it++)
-		{
-			Wall* wall = &(*it);
-
-			player.GetTareget().StaticCollision(wall);
-
-			wall->Render();
-		}
-
-		SDL_RenderPresent(main_ren);
 	};
 
 	SDL_Event event;
@@ -116,8 +77,9 @@ void Run()
 		SDL_SetRenderDrawColor(main_ren, 0, 0, 0, 0);
 		SDL_RenderClear(main_ren);
 		SDL_SetRenderDrawColor(main_ren, 255, 255, 255, 0);
-		//ground.Move();
-		update();
+		ground.Move();
+		UpdateObjects();
+		SDL_RenderPresent(main_ren);
 		//stricting frame rate to 40 fps
 		{
 			time_elapsed = SDL_GetTicks() - start;
