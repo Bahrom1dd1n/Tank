@@ -1,6 +1,8 @@
 #include "Object.h"
 
-Object::Object(SDL_FPoint center, int num_points, SDL_FPoint* boundary_points) {
+#include "Game.h"
+Object::Object(Game* game, SDL_FPoint center, int num_points, SDL_FPoint* boundary_points)
+    : game(game) {
     this->center = center;
     this->num_points = num_points;
     this->points = new SDL_FPoint[num_points];
@@ -27,7 +29,8 @@ Object::Object(SDL_FPoint center, int num_points, SDL_FPoint* boundary_points) {
 bool Object::Collision(Object* object) {
     {
         /*
-         * Checking for rectangular collision , if their rectangles not collide , they are indeed not intersecting
+         * Checking for rectangular collision , if their rectangles not collide , they are indeed
+         * not intersecting
          */
 
         if (this->most_left + this->center.x > object->center.x + object->most_right) return false;
@@ -53,7 +56,8 @@ bool Object::Collision(Object* object) {
 
         for (int i = 0; i < num1; i++) {
             int j = (i + 1) % num1;
-            SDL_FPoint axis = {points1[i].y - points1[j].y, points1[j].x - points1[i].x};  //////////////////////
+            SDL_FPoint axis = {points1[i].y - points1[j].y,
+                               points1[j].x - points1[i].x};  //////////////////////
 
             float left1 = INFINITY, right1 = -INFINITY;
 
@@ -100,7 +104,8 @@ bool Object::Collision(Object* object) {
 bool Object::StaticCollision(Object* object) {
     {
         /*
-         * Checking for rectangular collision , if their rectangles not collide , they are indeed not intersecting
+         * Checking for rectangular collision , if their rectangles not collide , they are indeed
+         * not intersecting
          */
 
         if (this->most_left + this->center.x > object->center.x + object->most_right) return false;
@@ -181,6 +186,18 @@ bool Object::StaticCollision(Object* object) {
     if (push(this, object)) return true;
 
     return push(object, this);
+}
+bool Object::InsideScreen() {
+    SDL_FRect frame = game->GetFrame();
+    if (this->most_right + this->center.x < frame.x ||
+        this->most_left + this->center.x > frame.x + frame.w)
+        return false;
+
+    if (this->most_bottom + this->center.y < frame.y ||
+        this->most_top + this->center.y > frame.y + frame.h)
+        return false;
+
+    return true;
 }
 
 void Object::SetPoints(int num_points, SDL_FPoint boundary_points[]) {

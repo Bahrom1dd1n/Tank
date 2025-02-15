@@ -16,9 +16,9 @@ const int delay = 20;
 void Run() {
     bool running = true;
 
-    Controller player(
-        Tank::Create({window_width * 0.5f, window_height * 0.5f}, 0.1F, 0.1F, "Sources/hull.png", "Sources/turret.png"),
-        26, 22, 7, 4);
+    Controller player(Tank::Create({window_width * 0.5f, window_height * 0.5f}, 0.1F, 0.1F,
+                                   "Sources/hull.png", "Sources/turret.png"),
+                      26, 22, 7, 4);
     Bullet::bullet_texture.Load("Sources/bullet.png");
     Terrain ground("Sources/grass.png", window_width, window_height, player.GetTareget(),
                    {window_width * 0.5F, window_height * 0.5F});
@@ -87,6 +87,4 @@ void Run() {
     }
 }
 
-int main(int argc, char* args[]) {
-    return 0;
-}
+int main(int argc, char* args[]) { return 0; }
