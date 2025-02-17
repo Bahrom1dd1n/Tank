@@ -1,8 +1,18 @@
 #include "Tank.h"
 
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_render.h>
+
+#include <cstddef>
+#include <cstdio>
+#include <vector>
+
 #include "Game.h"
-Tank::Tank(Game* game, const SDL_FPoint& center, float ang_speed, short type)
-    : ang_speed(ang_speed) {
+#include "Texture.h"
+
+std::list<Tank> Tank::tanks;
+std::vector<Tank::TankType> Tank::tank_types;
+Tank::Tank(Game* game, const SDL_FPoint& center, short type) {
     this->game = game;
     this->center = center;
     this->renderer = game->GetRenderer();
@@ -23,17 +33,14 @@ Tank::Tank(Game* game, const SDL_FPoint& center, float ang_speed, short type)
                                  {body_rect.w * 0.5f, body_rect.h * 0.5f},
                                  {-body_rect.w * 0.5f, body_rect.h * 0.5f}};
 
-    this->points = p_array;
-    this->original_points = op_array;
     this->num_points = 4;  // if boundary points created with object , its num_points must be
                            // initialized before calling SetPoints()
 
     this->SetPoints(4, edge_points);
 }
 
-Tank& Tank::Create(Game* game, const SDL_FPoint& center, float speed, float ang_speed,
-                   const char* body_path, const char* head_path) {
-    tanks.emplace_front(game, center, speed, ang_speed, body_path, head_path);
+Tank& Tank::Create(Game* game, const SDL_FPoint& center, short type) {
+    tanks.emplace_front(game, center, type);
     tanks.front().turn = tanks.begin();
     return tanks.front();
 }
@@ -75,14 +82,36 @@ void Tank::Fire() {
 
     SDL_FPoint p = {this->center.x + head_rotate_point.y * sinf(rad),
                     this->center.y - this->head_rotate_point.y * cosf(rad)};
-    Bullet::Create(game, p, this->head_angle, id);
+    /*Bullet::Create(game, p, this->head_angle, id);*/
 }
 
 void Tank::Move() {
     auto& time_elapsed = game->GetTimeElapsed();
     if (moving) MoveForward(moving * speed * time_elapsed);
 
-    if (rotating) RotateBy(rotating * ang_speed * time_elapsed);
+    if (rotating) RotateBy(rotating * tank_types[type].ang_speed * time_elapsed);
 
     if (fire_time <= reload_time) fire_time += time_elapsed;
+}
+void Tank::Init(Game* game) {
+    char path[30];
+    SDL_Renderer* renderer = game->GetRenderer();
+    for (int i = 0; i < 2; i++) {
+        snprintf(path, 30, "assets/hull%d.png", i);
+        SDL_Texture* texture = IMG_LoadTexture(renderer, path);
+        Texture hull{texture};
+        SDL_QueryTexture(texture, NULL, NULL, &hull.width, &hull.height);
+        snprintf(path, 30, "assets/turret%d.png", i);
+        texture = IMG_LoadTexture(renderer, path);
+        Texture turret{texture};
+        SDL_QueryTexture(texture, NULL, NULL, &turret.width, &turret.height);
+        Tank::tank_types.push_back(Tank::TankType{hull, turret, 0.2, 0.1});
+    }
+}
+void Tank::Quit() {
+    for (int i = 0; i < 2; i++) {
+        TankType& temp = Tank::tank_types[i];
+        if (temp.body.texture) SDL_DestroyTexture(temp.body.texture);
+        if (temp.head.texture) SDL_DestroyTexture(temp.head.texture);
+    }
 }

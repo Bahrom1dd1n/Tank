@@ -1,6 +1,9 @@
 #include "Object.h"
 
+#include <SDL2/SDL_rect.h>
+
 #include "Game.h"
+
 Object::Object(Game* game, SDL_FPoint center, int num_points, SDL_FPoint* boundary_points)
     : game(game) {
     this->center = center;
@@ -43,7 +46,6 @@ bool Object::Collision(Object* object) {
     auto overlap = [](Object* obj_1, Object* obj_2) {
         int& num1 = obj_1->num_points;
         int& num2 = obj_2->num_points;
-        ;
 
         SDL_FPoint* points1 = obj_1->points;
         SDL_FPoint* points2 = obj_2->points;
@@ -201,24 +203,32 @@ bool Object::InsideScreen() {
 }
 
 void Object::SetPoints(int num_points, SDL_FPoint boundary_points[]) {
-    this->num_points = num_points;
-
     if (this->points) delete[] this->points;
-
-    this->points = new SDL_FPoint[num_points];
+    int num = num_points;
+    if (!this->fixed) num *= 2;
+    this->points = new SDL_FPoint[num];
+    float m_r = -FLT_MAX, m_l = FLT_MAX;
+    float m_b = -FLT_MAX, m_t = FLT_MAX;
 
     for (int i = 0; i < num_points; i++) {
         SDL_FPoint& p = boundary_points[i];
         this->points[i] = p;  // copiing coordinates of all points
-
-        this->most_right = std::fmaxf(p.x, this->most_right);
-        this->most_left = std::fminf(p.x, this->most_left);
-        this->most_bottom = std::fmaxf(p.y, this->most_bottom);
-        this->most_top = std::fminf(p.y, this->most_top);
+        // if Object is not fixed origina  points will be stored at the end of the points array
+        if (!fixed) points[num_points + i] = p;
+        // identifying edges of object
+        m_r = std::fmaxf(p.x, m_r);
+        m_l = std::fminf(p.x, m_l);
+        m_b = std::fmaxf(p.y, m_b);
+        m_t = std::fminf(p.y, m_t);
     }
+
+    this->most_right = m_r;
+    this->most_left = m_l;
+    this->most_top = m_t;
+    this->most_bottom = m_b;
 }
 void Object::RotateBy(float da) {
-    if (!da) return;
+    if (!da || !fixed) return;
 
     this->angle += da;
     float rad = angle * M_PI / 180;
@@ -229,7 +239,7 @@ void Object::RotateBy(float da) {
     float m_b = -FLT_MAX, m_t = FLT_MAX;
 
     for (int i = 0; i < num_points; i++) {
-        SDL_FPoint& original = original_points[i];
+        SDL_FPoint& original = points[i + num_points];
         SDL_FPoint& point = points[i];
 
         point = {original.x * cos_a - original.y * sin_a, original.x * sin_a + original.y * cos_a};

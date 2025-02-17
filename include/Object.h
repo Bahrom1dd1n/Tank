@@ -16,9 +16,12 @@ class Object {
 
     //---------------------------------------- order should not be chabged
 
-    SDL_FPoint* original_points = nullptr;  // boundary points of polygon when it is not rotated
-    SDL_FPoint* points = nullptr;           // boundary points of polygon
-    double angle = 0;                       // rotated angle
+    /* boundary points of polygon
+     if Object is not fixed , it's original points are stored at the end of `points` array ,
+     thats starting at points[num_points]
+     original points are boundary points of polygon when it is not rotated*/
+    SDL_FPoint* points = nullptr;
+    double angle = 0;  // rotated angle
     float cos_a = 1;
     float sin_a = 0;
     // float radious = 0;// distance to farest points2 from center
@@ -52,8 +55,6 @@ class Object {
         // points created with object its points points should be assigned to nullptr!!!!
         if (this->points) delete[] this->points;
         this->points = nullptr;
-        if (!this->fixed && original_points) delete[] original_points;
-        this->original_points = nullptr;
     }
 };
 #endif  // !__OBJECT__

@@ -13,13 +13,6 @@
 #include "Big_data_array.h"
 #include "Shared_Texture.h"
 
-const int window_width = 1200;
-const int window_height = 700;
-int time_elapsed;
-
-SDL_FPoint viewpoint = {0.0f, 0.0f};
-SDL_Renderer* main_ren;
-
 std::list<Bullet> Bullet::bullets;
 Texture Bullet::bullet_texture;  // bullet_texture must be initialized in main !!!
 float Bullet::bullet_speed = 1.0f;
@@ -33,7 +26,8 @@ class Controller {
     short left = 0;
 
    public:
-    inline Controller(Tank& target, const short front, const short back, const short right, const short left)
+    inline Controller(Tank& target, const short front, const short back, const short right,
+                      const short left)
         : target(target), front(front), back(back), right(right), left(left) {}
     inline bool OnKeyDown(const short key) {
         if (key == front) {
@@ -78,7 +72,8 @@ class Wall : public Object {
     int* vertex_indecies = nullptr;
     const static short data_size;
     void ReadFromFile(std::ifstream& file, int position = -1) {
-        if (position > 0)  // if position given -1 then it will writo to posion where "write poiter" loacated of file
+        if (position > 0)  // if position given -1 then it will writo to posion where "write poiter"
+                           // loacated of file
             file.seekg(position);
 
         // file.read((char*)this, Wall::data_size);
@@ -138,7 +133,8 @@ class Wall : public Object {
         if (!this->InsideScreen()) return;
 
         this->UpdateVertices();
-        SDL_RenderGeometry(main_ren, NULL, vertices, num_points + 1, vertex_indecies, num_points * 3);
+        SDL_RenderGeometry(main_ren, NULL, vertices, num_points + 1, vertex_indecies,
+                           num_points * 3);
 
         /*float x = center.x - viewpoint.x;
         float y = center.y - viewpoint.y;
@@ -280,7 +276,8 @@ void UpdateObjects() {
     }
 
     for (auto tank = Tank::tanks.begin(); tank != Tank::tanks.end(); tank++) {
-        for (auto wall = Wall::walls.begin(); wall != Wall::walls.end(); wall++) tank->StaticCollision(&(*wall));
+        for (auto wall = Wall::walls.begin(); wall != Wall::walls.end(); wall++)
+            tank->StaticCollision(&(*wall));
 
         tank->Move();
         tank->Render();

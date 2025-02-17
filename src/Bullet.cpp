@@ -6,9 +6,8 @@
 #include <vector>
 
 #include "Game.h"
-#include "Object.h"
-
-inline std::list<Bullet> Bullet::bullets;
+std::list<Bullet> Bullet::bullets;
+std::vector<Bullet::BulletType> Bullet::bullet_types;
 Bullet::Bullet(Game* game, const SDL_FPoint& center, const float& angle, const short& owner_id,
                const short& type)
     : owner_id(owner_id) {
@@ -17,8 +16,6 @@ Bullet::Bullet(Game* game, const SDL_FPoint& center, const float& angle, const s
     this->renderer = game->GetRenderer();
     this->rect = {0.0F, 0.0F, float(bullet_types[type].width), float(bullet_types[type].height)};
     this->num_points = 2;
-    this->points = p_array;
-    this->original_points = op_array;
     this->fixed = false;
     SDL_FPoint boundary_points[2] = {{0.0F, -this->rect.h * 0.5f}, {0.0F, this->rect.h * 0.5f}};
     this->SetPoints(2, boundary_points);
