@@ -15,7 +15,7 @@ class Game {
 
     unsigned long int current_time = 0;  // time passed since window is opened (in milliseconds)
     int time_elapsed = 0;  // time passed since last render of window (in milliseconds)
-    int frame_delay = 20;
+    int frame_delay = 10;
     Texture texture;
     // coordinates of top left point of the battle field, and dimensions of
     // visible field.
@@ -32,7 +32,7 @@ class Game {
    public:
     bool moving = false;
     float dx = 0.0f, dy = 0.0f;  // speed of movement
-    Game(int width, int height);
+    Game(int width, int height, SDL_WindowFlags flags = SDL_WINDOW_SHOWN);
     inline SDL_Renderer* GetRenderer() const { return this->main_renderer; }
     inline const SDL_FRect& GetFrame() const { return this->frame; };
     inline const int& GetTimeElapsed() const { return time_elapsed; }

@@ -26,6 +26,8 @@ class Bullet : public Object {
            const short& type = 0);
 
     std::list<Bullet>::const_iterator turn;
+    static void Init(Game*);
+    static void Quit();
 
    public:
     static std::list<Bullet> bullets;
@@ -35,7 +37,6 @@ class Bullet : public Object {
     inline short GetOwner() { return this->owner_id; }
     void Render();
     bool Move();
-
     inline ~Bullet() {};
 };
 #endif  // !__BULLET__

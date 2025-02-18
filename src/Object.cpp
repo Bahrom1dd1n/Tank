@@ -228,7 +228,7 @@ void Object::SetPoints(int num_points, SDL_FPoint boundary_points[]) {
     this->most_bottom = m_b;
 }
 void Object::RotateBy(float da) {
-    if (!da || !fixed) return;
+    if (!da || fixed) return;
 
     this->angle += da;
     float rad = angle * M_PI / 180;

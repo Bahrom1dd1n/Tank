@@ -69,7 +69,7 @@ void Tank::Render() {
     this->head_rect.y = this->body_rect.y + this->body_to_head.y;
     SDL_RenderCopyExF(this->renderer, tank_types[type].body.texture, NULL, &body_rect, angle, NULL,
                       SDL_FLIP_NONE);
-    SDL_RenderCopyExF(this->renderer, tank_types[type].head.texture, NULL, &head_rect, angle,
+    SDL_RenderCopyExF(this->renderer, tank_types[type].head.texture, NULL, &head_rect, head_angle,
                       &head_rotate_point, SDL_FLIP_NONE);
 }
 
@@ -82,14 +82,31 @@ void Tank::Fire() {
 
     SDL_FPoint p = {this->center.x + head_rotate_point.y * sinf(rad),
                     this->center.y - this->head_rotate_point.y * cosf(rad)};
-    /*Bullet::Create(game, p, this->head_angle, id);*/
+    Bullet::Create(game, p, this->head_angle, id);
 }
 
 void Tank::Move() {
     auto& time_elapsed = game->GetTimeElapsed();
-    if (moving) MoveForward(moving * speed * time_elapsed);
+    auto& acceleration = tank_types[type].acceleration;
+    float drag = tank_types[type].acceleration * 0.1;
+    if (accelerating) {
+        auto& max_speed = tank_types[type].max_speed;
+        if (speed > -max_speed && speed < max_speed) speed += acceleration * accelerating;
+    } else
+        drag *= 8;
+    char direction = 1;
+    if (speed < 0) {
+        drag = -drag;
+        direction = -1;
+    }
+    if (rotating) {
+        drag *= 4;
+        RotateBy(rotating * tank_types[type].ang_speed * time_elapsed);
+    }
+    speed -= drag;
+    if (direction * speed < 0) speed = 0;
 
-    if (rotating) RotateBy(rotating * tank_types[type].ang_speed * time_elapsed);
+    if (speed) MoveForward(speed * time_elapsed);
 
     if (fire_time <= reload_time) fire_time += time_elapsed;
 }
@@ -99,13 +116,17 @@ void Tank::Init(Game* game) {
     for (int i = 0; i < 2; i++) {
         snprintf(path, 30, "assets/hull%d.png", i);
         SDL_Texture* texture = IMG_LoadTexture(renderer, path);
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(texture, SDL_ScaleModeLinear);
         Texture hull{texture};
         SDL_QueryTexture(texture, NULL, NULL, &hull.width, &hull.height);
         snprintf(path, 30, "assets/turret%d.png", i);
         texture = IMG_LoadTexture(renderer, path);
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(texture, SDL_ScaleModeLinear);
         Texture turret{texture};
         SDL_QueryTexture(texture, NULL, NULL, &turret.width, &turret.height);
-        Tank::tank_types.push_back(Tank::TankType{hull, turret, 0.2, 0.1});
+        Tank::tank_types.push_back(Tank::TankType{hull, turret, 0.2, 0.0005, 0.05});
     }
 }
 void Tank::Quit() {

@@ -51,3 +51,20 @@ bool Bullet::Move() {
 
     return true;
 }
+void Bullet::Init(Game* game) {
+    char path[30];
+    SDL_Renderer* renderer = game->GetRenderer();
+    for (int i = 0; i < 2; i++) {
+        snprintf(path, 30, "assets/bullet%d.png", i);
+        SDL_Texture* texture = IMG_LoadTexture(renderer, path);
+        Texture hull{texture};
+        SDL_QueryTexture(texture, NULL, NULL, &hull.width, &hull.height);
+        Bullet::bullet_types.push_back(Bullet::BulletType{hull, 1.5F});
+    }
+}
+void Bullet::Quit() {
+    for (int i = 0; i < 2; i++) {
+        BulletType& temp = Bullet::bullet_types[i];
+        if (temp.texture) SDL_DestroyTexture(temp.texture);
+    }
+}

@@ -41,6 +41,9 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+.PHONY: test
+test: 
+	$(CXX) $(CXXFLAGS) -o $(BIN_DIR)/test test.cpp $(CLIBS)
 # Cleaning up
 .PHONY: clean
 clean:

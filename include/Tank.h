@@ -16,6 +16,7 @@ class Tank : public Object {
         Texture body;
         Texture head;
         float max_speed = 0;
+        float acceleration = 0;
         float ang_speed = 0;
     };
     std::list<Tank>::iterator turn;
@@ -34,7 +35,7 @@ class Tank : public Object {
     short type = 0;
     float speed = 0.0F;
     // is body of the tank rotating(0: not rotating; >0: roating right ;<0 rotatong left)
-    char moving = 0;    // if moving > 0 : moving forward, < 0: backwards, 0: not moving
+    float accelerating = 0;  // if gas > 0 : moving forward, < 0: backwards, 0: not moving
     char rotating = 0;  // if rotating > 0: rotating right , < 0 : rotating left, 0: not ratating
     Tank(Game* game, const SDL_FPoint& center, short type = 0);
     static void Init(Game* game);
