@@ -126,7 +126,7 @@ void Tank::Init(Game* game) {
         SDL_SetTextureScaleMode(texture, SDL_ScaleModeLinear);
         Texture turret{texture};
         SDL_QueryTexture(texture, NULL, NULL, &turret.width, &turret.height);
-        Tank::tank_types.push_back(Tank::TankType{hull, turret, 0.2, 0.0005, 0.05});
+        Tank::tank_types.push_back(Tank::TankType{hull, turret, 0.4, 0.0005, 0.05});
     }
 }
 void Tank::Quit() {

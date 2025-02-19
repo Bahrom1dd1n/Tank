@@ -1,6 +1,7 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
+#include <SDL2/SDL_video.h>
 
 #include <cmath>
 
@@ -9,8 +10,8 @@
 #include "Object.h"
 #include "Tank.h"
 int main(int argc, char* argv[]) {
-    Game game(600, 600, SDL_WINDOW_FULLSCREEN_DESKTOP);
-    Tank& tank = Tank::Create(&game, {0, 0}, 1);
+    Game game(1200, 700, SDL_WINDOW_FULLSCREEN);
+    Tank& tank = Tank::Create(&game, {0, 0}, 0);
     game.SetTarget(&tank, {game.GetFrame().w / 2, game.GetFrame().h / 2});
     game.SetBackgroundTexture("assets/ground2.png");
     tank.RotateBy(40);

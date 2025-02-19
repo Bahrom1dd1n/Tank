@@ -37,6 +37,7 @@ class Game {
     inline const SDL_FRect& GetFrame() const { return this->frame; };
     inline const int& GetTimeElapsed() const { return time_elapsed; }
     inline const unsigned long& GetCurrentTime() const { return current_time; }
+    inline void SetFrameRate(unsigned int FPS) { this->frame_delay = 1000 / FPS; }
     void SetTarget(Tank* target, const SDL_FPoint& target_position);
     void SetBackgroundTexture(const char* texture_path);
     void Render();
