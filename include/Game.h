@@ -28,6 +28,8 @@ class Game {
     int row = 0, col = 0;  // number of col and row to fill screeen with texture
     short old_key = 0;
     bool running = false;
+    void HandleEvents();
+    void Update();
 
    public:
     bool moving = false;

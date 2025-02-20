@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <filesystem>
 #include <vector>
 
 #include "Game.h"
@@ -88,19 +89,21 @@ void Tank::Fire() {
 void Tank::Move() {
     auto& time_elapsed = game->GetTimeElapsed();
     auto& acceleration = tank_types[type].acceleration;
-    float drag = tank_types[type].acceleration * 0.1;
-    if (accelerating) {
+    float drag = acceleration;
+    if (accelerating * speed < 0) {
+        drag *= 4;
+    } else if (accelerating) {
         auto& max_speed = tank_types[type].max_speed;
         if (speed > -max_speed && speed < max_speed) speed += acceleration * accelerating;
-    } else
-        drag *= 8;
+        drag *= 0.1;
+    }
     char direction = 1;
     if (speed < 0) {
         drag = -drag;
         direction = -1;
     }
     if (rotating) {
-        drag *= 4;
+        drag *= 2;
         RotateBy(rotating * tank_types[type].ang_speed * time_elapsed);
     }
     speed -= drag;
