@@ -21,7 +21,7 @@ Game::Game(int width, int height, SDL_WindowFlags flags) {
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
     int x = SDL_WINDOWPOS_CENTERED, y = SDL_WINDOWPOS_CENTERED;
-    if (flags & SDL_WINDOW_FULLSCREEN) {
+    if ((flags & SDL_WINDOW_FULLSCREEN) && !(flags & 0x00001000)) {
         SDL_Rect bounds;
         SDL_GetDisplayUsableBounds(0, &bounds);
         width = bounds.w;
@@ -187,13 +187,13 @@ void Game::Update() {
 
         it->Move();
     }
-
     for (auto tank = Tank::tanks.begin(); tank != Tank::tanks.end(); tank++) {
         for (auto wall = Wall::walls.begin(); wall != Wall::walls.end(); wall++)
             tank->StaticCollision(&(*wall));
 
         tank->Move();
     }
+    this->Move();
 
     this->Render();
     for (auto wall = Wall::walls.begin(); wall != Wall::walls.end(); wall++) wall->Render();
