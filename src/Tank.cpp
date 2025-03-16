@@ -1,11 +1,12 @@
 #include "Tank.h"
 
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 
 #include <cstddef>
 #include <cstdio>
-#include <filesystem>
+#include <utility>
 #include <vector>
 
 #include "Game.h"
@@ -29,15 +30,15 @@ Tank::Tank(Game* game, const SDL_FPoint& center, short type) {
 
     head_rotate_point = {head_rect.w * 0.5f, head_rect.h * 0.7f};
 
-    SDL_FPoint edge_points[4] = {{-body_rect.w * 0.5f, -body_rect.h * 0.5f},
-                                 {body_rect.w * 0.5f, -body_rect.h * 0.5f},
-                                 {body_rect.w * 0.5f, body_rect.h * 0.5f},
-                                 {-body_rect.w * 0.5f, body_rect.h * 0.5f}};
+    std::vector<SDL_FPoint> edge_points = {{-body_rect.w * 0.5f, -body_rect.h * 0.5f},
+                                           {body_rect.w * 0.5f, -body_rect.h * 0.5f},
+                                           {body_rect.w * 0.5f, body_rect.h * 0.5f},
+                                           {-body_rect.w * 0.5f, body_rect.h * 0.5f}};
 
     this->num_points = 4;  // if boundary points created with object , its num_points must be
                            // initialized before calling SetPoints()
 
-    this->SetPoints(4, edge_points);
+    Object::SetPoints(4, std::move(edge_points));
 }
 
 Tank& Tank::Create(Game* game, const SDL_FPoint& center, short type) {

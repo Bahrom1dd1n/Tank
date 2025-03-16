@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <ctime>
 #include <list>
+#include <utility>
 #include <vector>
 
 #include "Game.h"
@@ -17,8 +18,9 @@ Bullet::Bullet(Game* game, const SDL_FPoint& center, const float& angle, const s
     this->rect = {0.0F, 0.0F, float(bullet_types[type].width), float(bullet_types[type].height)};
     this->num_points = 2;
     this->fixed = false;
-    SDL_FPoint boundary_points[2] = {{0.0F, -this->rect.h * 0.5f}, {0.0F, this->rect.h * 0.5f}};
-    this->SetPoints(2, boundary_points);
+    std::vector<SDL_FPoint> boundary_points = {{0.0F, -this->rect.h * 0.5f},
+                                               {0.0F, this->rect.h * 0.5f}};
+    this->SetPoints(2, std::move(boundary_points));
     // boundary points should be rotated after setting originla points!!!
     this->angle = 0;        // angle of bullet will not change
     this->RotateBy(angle);  // so once it is created its angle rotated once

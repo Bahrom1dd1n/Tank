@@ -25,7 +25,6 @@ class Tank : public Object {
     SDL_FRect body_rect;
     SDL_FRect head_rect;
     short id = 0;
-    static short last_id;
     float head_angle;              // angle of turret
     SDL_FPoint body_to_head;       // distance from body_rect to head_rect
     SDL_FPoint head_rotate_point;  // the turret will rotate relative to this point

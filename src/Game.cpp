@@ -3,10 +3,15 @@
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
+
+#include <cstdio>
+#include <utility>
+#include <vector>
 
 #include "Bullet.h"
 #include "Object.h"
@@ -54,6 +59,31 @@ void Game::SetBackgroundTexture(const char* texture_path) {
     start_point.x = -surf->w;
     start_point.y = -surf->w;
     SDL_FreeSurface(surf);
+}
+void Game::LoadMap(const char* file_name) {
+    std::ifstream file(file_name, std::ios::binary);
+    if (!file.is_open()) {
+        printf("Couldn't Load Map\n");
+        return;
+    }
+    int num_obj;
+    file.read((char*)&num_obj, sizeof(int));
+    Wall::walls.reserve(num_obj);
+    SDL_FPoint point;
+    int num_points = 0;
+    while (num_obj-- > 0) {
+        file.read((char*)&point, sizeof(SDL_FPoint));
+        file.read((char*)&num_points, sizeof(int));
+        Wall::walls.emplace_back(this, point);
+
+        std::vector<SDL_FPoint> new_points(num_points);
+        for (int i = 0; i < num_points; i++) {
+            file.read((char*)&new_points[i], sizeof(SDL_FPoint));
+        }
+
+        Wall::walls.back().SetPoints(num_points, std::move(new_points));
+    }
+    file.close();
 }
 void Game::Render() {
     SDL_SetRenderDrawColor(main_renderer, 255, 255, 255, 255);

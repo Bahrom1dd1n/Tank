@@ -42,6 +42,7 @@ class Game {
     inline void SetFrameRate(unsigned int FPS) { this->frame_delay = 1000 / FPS; }
     void SetTarget(Tank* target, const SDL_FPoint& target_position);
     void SetBackgroundTexture(const char* texture_path);
+    void LoadMap(const char* path);
     void Render();
     void Move();
     void Start();
